@@ -8,7 +8,7 @@ HashTable::HashTable(){
     count_keys = 0;
 
     trans_idx = -1;
-    batchSize = 128;
+    batchSize = 64;
     newBin = nullptr;
 }
 
@@ -49,44 +49,133 @@ size_t HashTable::getIdx(size_t hashed){
 
 void HashTable::insert(string&key,string&val){
     if(trans_idx == -1){
-        int idx = getIdx(Hash(key));
+        size_t idx = getIdx(Hash(key));
     
-        Node*node = new Node;
-        node->key = key;
-        node->value = val;
-        node->nex = nullptr;
-    
+        
         // insert at head
         if(bin[idx] == nullptr){
+            Node*node = new Node;
+            node->key = key;
+            node->value = val;
+            node->nex = nullptr;
+            
             bin[idx] = node;
+            count_keys++;
         }else{
+            // search the chain
+            Node*curr = bin[idx];
+            int foundFlag = 0;
+            
+            while(curr != nullptr){
+                if(curr->key == key){
+                    // if found, then simply change the value and do not increase the kvcount and return
+                    foundFlag = 1;
+                    curr->value = val;
+                    return;
+                }
+                curr = curr->nex;
+            }
+            // not found in the chain, add the node
+            Node*node = new Node;
+            node->key = key;
+            node->value = val;
+            node->nex = nullptr;
+            
             node->nex = bin[idx];
             bin[idx] = node;
+            count_keys++;
         }
     
-        count_keys++;
     
-        // if(2*count_keys > N){
-        //     resize();
-        // }
+        if(2*count_keys > N){
+            resize();
+        }
     }else{
-        // place in newBin only
-        int idx = Hash(key)%(2*N);
-    
-        Node*node = new Node;
-        node->key = key;
-        node->value = val;
-        node->nex = nullptr;
-    
-        // insert at head
-        if(newBin[idx] == nullptr){
-            newBin[idx] = node;
+        // place in newBin only -- but
+        // if already exist in bin, then remove from bin and place it in newbin
+
+        // check if already exist in bin
+        size_t idx = getIdx(Hash(key));
+
+        if(bin[idx] == nullptr){
+            // good! not in bin
         }else{
+            Node*curr = bin[idx];
+
+            if(curr->key == key){
+                Node*temp = curr;
+                bin[idx] = curr->nex;
+                delete temp;
+
+            }else{
+                curr = curr->nex;
+                Node*prev = bin[idx];
+                while(curr != nullptr){
+                    if(curr->key == key){
+                        // AAH! in the bin
+                        // remove it
+                        prev->nex = curr->nex;
+                        delete curr;
+                        break;
+                    }
+
+                    curr = curr->nex;
+                    prev = prev->nex;
+                }
+            }
+        }
+
+
+        idx = Hash(key)%(2*N);
+
+        if(newBin[idx] == nullptr){
+            Node*node = new Node;
+            node->key = key;
+            node->value = val;
+            node->nex = nullptr;
+            
+            newBin[idx] = node;
+            count_keys++;
+        }else{
+            // search the chain
+            Node*curr = newBin[idx];
+            int foundFlag = 0;
+            
+            while(curr != nullptr){
+                if(curr->key == key){
+                    // if found, then simply change the value and do not increase the kvcount and return
+                    foundFlag = 1;
+                    curr->value = val;
+                    return;
+                }
+                curr = curr->nex;
+            }
+            // not found in the chain, add the node
+            Node*node = new Node;
+            node->key = key;
+            node->value = val;
+            node->nex = nullptr;
+            
             node->nex = newBin[idx];
             newBin[idx] = node;
+            count_keys++;
         }
     
-        count_keys++;
+    
+        // Node*node = new Node;
+        // node->key = key;
+        // node->value = val;
+        // node->nex = nullptr;
+    
+        // // insert at head
+        // if(newBin[idx] == nullptr){
+        //     newBin[idx] = node;
+        // }else{
+        //     node->nex = newBin[idx];
+        //     newBin[idx] = node;
+        // }
+    
+        // count_keys++;
 
         progressiveRehashing();
     }
@@ -113,16 +202,8 @@ string HashTable::find(const string&key){
     }
     
     // transition mode
-    int idx = getIdx(Hash(key));
-    Node*curr = bin[idx];
+    Node*curr;
 
-    while(curr != nullptr){
-        if(curr->key == key){
-            return curr->value;
-        }
-        curr = curr->nex;
-    }
-    
     int newIdx = Hash(key)%(2*N);
     curr = newBin[newIdx];
     
@@ -132,13 +213,21 @@ string HashTable::find(const string&key){
         }
         curr = curr->nex;
     }
+    int idx = getIdx(Hash(key));
+    curr = bin[idx];
+
+    while(curr != nullptr){
+        if(curr->key == key){
+            return curr->value;
+        }
+        curr = curr->nex;
+    }
+    
 
     // do the moveBatch operation
     progressiveRehashing();
 
     return "";
-    
-
 }
 
 // void HashTable::remove(string&key){
@@ -344,6 +433,7 @@ void HashTable::resize(){
 }
 
 void HashTable::progressiveRehashing(){
+    // cout<<"PG triggered"<<endl;
     int newN = N*2;
     int remainingInBatch = batchSize;
     

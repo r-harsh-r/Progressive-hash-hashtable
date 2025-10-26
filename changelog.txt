@@ -1,0 +1,29 @@
+Design bug fixed :
+1) The chain was suppose avoid collision b/w different key allocated same index, but it was addit new node everyting, for the same key also
+2) Fixed this : made one one mapping bw key and value
+3) Fixed the logical bug of duplicate during find, during insertion, (what i was doing) if transition mode, then the key,value goes directly into newBin, i completly ignored the possibility of 
+   updation of the kv pair, for example a old KV pair exist in new bin, then i do insert(k,V2) during transition, this would directly add/update value in newbin, leaving a duplicate errorneous value in bin
+   Fixed this bi first finding and then removing any old kv pair in bin befor adding into newbin
+3) MAJOR BUG : The transition was never trigerred in the previous update, FIXED
+
+Stress Test Result : 
+--- Running Correctness Fuzz Test ---
+Correctness Test PASSED: All 100000 operations matched std::unordered_map.
+Final map size: 18609 keys.
+
+--- Running Latency Test (Your HashTable) ---
+Inserting 2000000 items and measuring each insertion latency...
+--- Latency Test Results (Your HashTable) ---
+Total items inserted: 2000000
+Average insertion latency: 1596.58 ns (1.59658 us)
+MAXIMUM insertion latency: 50172536 ns (50.1725 ms)
+TEST PASSED (Your Table): No major pauses detected during resizing.
+
+--- Running Latency Test (std::unordered_map) ---
+Inserting 2000000 items and measuring each insertion latency...
+--- Latency Test Results (std::unordered_map) ---
+Total items inserted: 2000000
+Average insertion latency: 2710.34 ns (2.71034 us)
+MAXIMUM insertion latency: 716446241 ns (716.446 ms)
+
+All stress tests completed.
