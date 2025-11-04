@@ -27,3 +27,54 @@ Average insertion latency: 2710.34 ns (2.71034 us)
 MAXIMUM insertion latency: 716446241 ns (716.446 ms)
 
 All stress tests completed.
+
+UPD :
+made a template of it, moved all the implementation in .h file only
+
+Stress test result :
+--- Correctness Fuzz Test for int,int ---
+Correctness PASSED for int,int (ops=5000000, final_size=9980)
+
+--- Latency Test (Your HashTable) for int,int ---
+Inserted: 10000000, avg insert: 166.407 ns (0.000166407 ms), max: 211487174 ns (211.487 ms)
+
+--- Latency Test (std::unordered_map) for int,int ---
+Inserted: 10000000, avg insert: 171.175 ns (0.000171175 ms), max: 168862082 ns (168.862 ms)
+
+--- Correctness Fuzz Test for long,long ---
+Correctness PASSED for long,long (ops=5000000, final_size=10023)
+
+--- Latency Test (Your HashTable) for long,long ---
+Inserted: 10000000, avg insert: 160.077 ns (0.000160077 ms), max: 212780411 ns (212.78 ms)
+
+--- Latency Test (std::unordered_map) for long,long ---
+Inserted: 10000000, avg insert: 140.159 ns (0.000140159 ms), max: 126057819 ns (126.058 ms)
+
+--- Correctness Fuzz Test for string,string ---
+Correctness PASSED for string,string (ops=5000000, final_size=10065)
+
+--- Latency Test (Your HashTable) for string,string ---
+Inserted: 10000000, avg insert: 850.034 ns (0.000850034 ms), max: 230984130 ns (230.984 ms)
+
+--- Latency Test (std::unordered_map) for string,string ---
+Inserted: 10000000, avg insert: 1163.19 ns (0.00116319 ms), max: 1488649985 ns (1488.65 ms)
+
+--- Correctness Fuzz Test for int,string ---
+Correctness PASSED for int,string (ops=5000000, final_size=9874)
+
+--- Latency Test (Your HashTable) for int,string ---
+Inserted: 10000000, avg insert: 114.292 ns (0.000114292 ms), max: 19812937 ns (19.8129 ms)
+
+--- Latency Test (std::unordered_map) for int,string ---
+Inserted: 10000000, avg insert: 122.8 ns (0.0001228 ms), max: 83429793 ns (83.4298 ms)
+
+--- Correctness Fuzz Test for string,int ---
+Correctness PASSED for string,int (ops=5000000, final_size=9952)
+
+--- Latency Test (Your HashTable) for string,int ---
+Inserted: 10000000, avg insert: 741.916 ns (0.000741916 ms), max: 23983944 ns (23.9839 ms)
+
+--- Latency Test (std::unordered_map) for string,int ---
+Inserted: 10000000, avg insert: 1108.37 ns (0.00110837 ms), max: 1428461099 ns (1428.46 ms)
+
+All stress tests completed.

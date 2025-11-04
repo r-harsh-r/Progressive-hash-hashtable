@@ -1,0 +1,74 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+
+# Object files and libraries
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+stress_test_app
+test_app
+
+# Logs, temporary files
+*.log
+*.tmp
+*.pid
+
+# IDE/editor files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.project
+*.cproject
+*.classpath
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Debug / core dumps
+core
+*.stackdump
+
+# Coverage and profiling
+coverage/
+*.gcno
+*.gcda
+*.lcov
+*.prof
+
+# Build system generated files
+compile_commands.json
+
+# Editor swap/backup files
+*~
+*.swp
+*.swo
+
+# ccache
+.ccache/
+
+# Misc
+tags
+
+# Keep README, sources, and config tracked
+!readme.md
+!hashtable.h
+!hashtable.cpp
+!main.cpp

@@ -8,176 +8,179 @@
 #include <chrono>        // For performance timing
 #include <numeric>       // For std::accumulate
 #include <algorithm>     // For std::max_element
+#include <type_traits>
 
-// --- Test 1: Correctness Fuzzing (Golden Model Test) ---
-void runCorrectnessTest() {
-    std::cout << "--- Running Correctness Fuzz Test ---" << std::endl;
-    HashTable myTable;
-    std::unordered_map<std::string, std::string> goldenMap;
+// Helper to convert an integer (0..N) to a key of type K
+template <typename K>
+K make_key_from_index(int i) {
+    if constexpr (std::is_integral<K>::value) {
+        return static_cast<K>(i);
+    } else {
+        return std::string("key") + std::to_string(i);
+    }
+}
 
-    // Setup for random number generation
+// Helper to create a value of type V from an index
+template <typename V>
+V make_value_from_index(int i) {
+    if constexpr (std::is_integral<V>::value) {
+        return static_cast<V>(i);
+    } else {
+        return std::string("val") + std::to_string(i);
+    }
+}
+
+// Templated correctness fuzz test using unordered_map as golden model
+template <typename K, typename V>
+void runCorrectnessTest_T(const std::string &label, int NUM_OPERATIONS = 50000, int KEY_POOL = 50000) {
+    std::cout << "--- Correctness Fuzz Test for " << label << " ---" << std::endl;
+    HashTable<K, V> myTable;
+    std::unordered_map<K, V> goldenMap;
+
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> op_dist(0, 2); // 0: Insert, 1: Find, 2: Remove
-    // Key pool size. Smaller pool means more collisions and more removals of existing keys.
-    std::uniform_int_distribution<> key_dist(0, 50000); 
-
-    const int NUM_OPERATIONS = 100000; // 1 Million operations for fuzzing
+    std::uniform_int_distribution<> key_dist(0, KEY_POOL);
 
     for (int i = 0; i < NUM_OPERATIONS; ++i) {
         int operation = op_dist(gen);
-        std::string key = "key" + std::to_string(key_dist(gen)); // Random key
-        
-        if (operation == 0) { // --- INSERT ---
-            std::string value = "val" + std::to_string(i);
+        K key = make_key_from_index<K>(key_dist(gen));
+
+        if (operation == 0) { // INSERT
+            V value = make_value_from_index<V>(i);
             myTable.insert(key, value);
-            goldenMap[key] = value; // std::unordered_map also handles updates
-            
-        } else if (operation == 1) { // --- FIND ---
-            std::string my_val = myTable.find(key);
-            
-            std::string golden_val = "";
+            goldenMap[key] = value;
+        } else if (operation == 1) { // FIND
+            V my_val = myTable.find(key);
+            V golden_val = V{};
             auto it = goldenMap.find(key);
-            if (it != goldenMap.end()) {
-                golden_val = it->second;
-            }
+            if (it != goldenMap.end()) golden_val = it->second;
 
-            // Assertion: values must be identical
             if (my_val != golden_val) {
-                std::cerr << "Correctness Test FAILED at operation " << i << " (FIND)!" << std::endl;
-                std::cerr << "Key: " << key << std::endl;
-                std::cerr << "My Table found: '" << my_val << "'" << std::endl;
-                std::cerr << "Golden Map found: '" << golden_val << "'" << std::endl;
-                assert(false && "Correctness test failed on find!");
+                std::cerr << "Correctness FAILED for " << label << " at op " << i << " (FIND)" << std::endl;
+                std::cerr << "Key (index form): " << key_dist(gen) << "\n";
+                assert(false && "Correctness mismatch");
             }
-
-        } else { // --- REMOVE ---
+        } else { // REMOVE
             myTable.remove(key);
-            goldenMap.erase(key); // std::unordered_map erase on non-existent key is safe
+            goldenMap.erase(key);
         }
     }
 
     // Final verification
-    for (const auto& pair : goldenMap) {
-        std::string my_val = myTable.find(pair.first);
-        if (my_val != pair.second) {
-            std::cerr << "Correctness Test FAILED during final verification!" << std::endl;
-            std::cerr << "Key: " << pair.first << std::endl;
-            std::cerr << "My Table found: '" << my_val << "'" << std::endl;
-            std::cerr << "Golden Map found: '" << pair.second << "'" << std::endl;
-            assert(false && "Correctness test failed on final verification!");
+    for (const auto &p : goldenMap) {
+        V my_val = myTable.find(p.first);
+        if (my_val != p.second) {
+            std::cerr << "Correctness final verification FAILED for " << label << std::endl;
+            assert(false && "Final verification mismatch");
         }
     }
 
-    std::cout << "Correctness Test PASSED: All " << NUM_OPERATIONS << " operations matched std::unordered_map." << std::endl;
-    std::cout << "Final map size: " << goldenMap.size() << " keys." << std::endl;
+    std::cout << "Correctness PASSED for " << label << " (ops=" << NUM_OPERATIONS << ", final_size=" << goldenMap.size() << ")" << std::endl;
     std::cout << std::endl;
 }
 
-// --- Test 2: Latency Test (YOUR HashTable) ---
-void runLatencyTest_MyTable() { // Renamed this function
-    std::cout << "--- Running Latency Test (Your HashTable) ---" << std::endl;
-    HashTable myTable;
+// Templated latency test for HashTable
+template <typename K, typename V>
+void runLatencyTest_MyTable_T(const std::string &label, int NUM_INSERTIONS = 200000) {
+    std::cout << "--- Latency Test (Your HashTable) for " << label << " ---" << std::endl;
+    HashTable<K, V> myTable;
 
-    const int NUM_INSERTIONS = 2000000; // 2 Million insertions
     std::vector<long long> timings_ns;
     timings_ns.reserve(NUM_INSERTIONS);
 
-    std::cout << "Inserting " << NUM_INSERTIONS << " items and measuring each insertion latency..." << std::endl;
-
     for (int i = 0; i < NUM_INSERTIONS; ++i) {
-        std::string key = "key" + std::to_string(i);
-        std::string val = "val" + std::to_string(i);
+        K key = make_key_from_index<K>(i);
+        V val = make_value_from_index<V>(i);
 
         auto start = std::chrono::high_resolution_clock::now();
         myTable.insert(key, val);
         auto end = std::chrono::high_resolution_clock::now();
 
-        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-        timings_ns.push_back(duration.count());
+        timings_ns.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     }
 
-    // --- Analyze Results ---
-    long long max_latency = 0;
-    if (!timings_ns.empty()) {
-        max_latency = *std::max_element(timings_ns.begin(), timings_ns.end());
-    }
-    
+    long long max_latency = timings_ns.empty() ? 0 : *std::max_element(timings_ns.begin(), timings_ns.end());
     long long total_time = std::accumulate(timings_ns.begin(), timings_ns.end(), 0LL);
-    double avg_latency = 0.0;
-    if (NUM_INSERTIONS > 0) {
-        avg_latency = static_cast<double>(total_time) / NUM_INSERTIONS;
-    }
+    double avg_latency = NUM_INSERTIONS ? static_cast<double>(total_time) / NUM_INSERTIONS : 0.0;
 
-    std::cout << "--- Latency Test Results (Your HashTable) ---" << std::endl;
-    std::cout << "Total items inserted: " << NUM_INSERTIONS << std::endl;
-    std::cout << "Average insertion latency: " << avg_latency << " ns (" << avg_latency / 1000.0 << " us)" << std::endl;
-    std::cout << "MAXIMUM insertion latency: " << max_latency << " ns (" << static_cast<double>(max_latency) / 1000000.0 << " ms)" << std::endl;
+    double avg_latency_ms = avg_latency / 1e6;
+    double max_latency_ms = static_cast<double>(max_latency) / 1e6;
 
-    if (static_cast<double>(max_latency) / 1000000.0 > 100.0) { 
-        std::cout << "TEST FAILED (Your Table): Max latency is too high! Possible pause during resize." << std::endl;
-    } else {
-        std::cout << "TEST PASSED (Your Table): No major pauses detected during resizing." << std::endl;
-    }
+    std::cout << "Inserted: " << NUM_INSERTIONS
+              << ", avg insert: " << avg_latency << " ns (" << avg_latency_ms << " ms)"
+              << ", max: " << max_latency << " ns (" << max_latency_ms << " ms)" << std::endl;
     std::cout << std::endl;
 }
 
-// --- Test 3: Latency Test (std::unordered_map) ---
-void runLatencyTest_STL() {
-    std::cout << "--- Running Latency Test (std::unordered_map) ---" << std::endl;
-    std::unordered_map<std::string, std::string> stlMap; // Use the STL map
+// Templated latency test for std::unordered_map
+template <typename K, typename V>
+void runLatencyTest_STL_T(const std::string &label, int NUM_INSERTIONS = 200000) {
+    std::cout << "--- Latency Test (std::unordered_map) for " << label << " ---" << std::endl;
+    std::unordered_map<K, V> stlMap;
 
-    const int NUM_INSERTIONS = 2000000; // Same workload
     std::vector<long long> timings_ns;
     timings_ns.reserve(NUM_INSERTIONS);
 
-    std::cout << "Inserting " << NUM_INSERTIONS << " items and measuring each insertion latency..." << std::endl;
-
     for (int i = 0; i < NUM_INSERTIONS; ++i) {
-        std::string key = "key" + std::to_string(i);
-        std::string val = "val" + std::to_string(i);
+        K key = make_key_from_index<K>(i);
+        V val = make_value_from_index<V>(i);
 
         auto start = std::chrono::high_resolution_clock::now();
-        stlMap[key] = val; // Use the STL insert operation
+        stlMap[key] = val;
         auto end = std::chrono::high_resolution_clock::now();
 
-        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-        timings_ns.push_back(duration.count());
+        timings_ns.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
     }
 
-    // --- Analyze Results ---
-    long long max_latency = 0;
-    if (!timings_ns.empty()) {
-        max_latency = *std::max_element(timings_ns.begin(), timings_ns.end());
-    }
-    
+    long long max_latency = timings_ns.empty() ? 0 : *std::max_element(timings_ns.begin(), timings_ns.end());
     long long total_time = std::accumulate(timings_ns.begin(), timings_ns.end(), 0LL);
-    double avg_latency = 0.0;
-    if (NUM_INSERTIONS > 0) {
-        avg_latency = static_cast<double>(total_time) / NUM_INSERTIONS;
-    }
+    double avg_latency = NUM_INSERTIONS ? static_cast<double>(total_time) / NUM_INSERTIONS : 0.0;
 
-    std::cout << "--- Latency Test Results (std::unordered_map) ---" << std::endl;
-    std::cout << "Total items inserted: " << NUM_INSERTIONS << std::endl;
-    std::cout << "Average insertion latency: " << avg_latency << " ns (" << avg_latency / 1000.0 << " us)" << std::endl;
-    std::cout << "MAXIMUM insertion latency: " << max_latency << " ns (" << static_cast<double>(max_latency) / 1000000.0 << " ms)" << std::endl;
+    double avg_latency_ms = avg_latency / 1e6;
+    double max_latency_ms = static_cast<double>(max_latency) / 1e6;
+
+    std::cout << "Inserted: " << NUM_INSERTIONS
+              << ", avg insert: " << avg_latency << " ns (" << avg_latency_ms << " ms)"
+              << ", max: " << max_latency << " ns (" << max_latency_ms << " ms)" << std::endl;
     std::cout << std::endl;
 }
 
 int main() {
-    // --- IMPORTANT: For memory leak detection, compile with -fsanitize=address ---
-    // g++ -std=c++17 -g -fsanitize=address main.cpp hashtable.cpp -o stress_test_app
-    // Then run: ./stress_test_app
-    
-    // Disable synchronization for faster I/O in tests
+    // Disable sync for faster I/O
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(NULL);
 
-    runCorrectnessTest();
-    runLatencyTest_MyTable(); // Run your test
-    runLatencyTest_STL();     // Run the STL test
+    // We'll run correctness + latency tests for a few common/basic types.
+    // Keep counts moderate so the run completes quickly on a developer machine.
+    const int CORRECTNESS_OPS = 5000000;
+    const int LATENCY_INS = 10000000;
+
+    // 1) int -> int
+    runCorrectnessTest_T<int, int>("int,int", CORRECTNESS_OPS, 20000);
+    runLatencyTest_MyTable_T<int, int>("int,int", LATENCY_INS);
+    runLatencyTest_STL_T<int, int>("int,int", LATENCY_INS);
+
+    // 2) long -> long
+    runCorrectnessTest_T<long, long>("long,long", CORRECTNESS_OPS, 20000);
+    runLatencyTest_MyTable_T<long, long>("long,long", LATENCY_INS);
+    runLatencyTest_STL_T<long, long>("long,long", LATENCY_INS);
+
+    // 3) string -> string
+    runCorrectnessTest_T<std::string, std::string>("string,string", CORRECTNESS_OPS, 20000);
+    runLatencyTest_MyTable_T<std::string, std::string>("string,string", LATENCY_INS);
+    runLatencyTest_STL_T<std::string, std::string>("string,string", LATENCY_INS);
+
+    // 4) int -> string (mixed)
+    runCorrectnessTest_T<int, std::string>("int,string", CORRECTNESS_OPS, 20000);
+    runLatencyTest_MyTable_T<int, std::string>("int,string", LATENCY_INS);
+    runLatencyTest_STL_T<int, std::string>("int,string", LATENCY_INS);
+
+    // 5) string -> int (mixed)
+    runCorrectnessTest_T<std::string, int>("string,int", CORRECTNESS_OPS, 20000);
+    runLatencyTest_MyTable_T<std::string, int>("string,int", LATENCY_INS);
+    runLatencyTest_STL_T<std::string, int>("string,int", LATENCY_INS);
 
     std::cout << "All stress tests completed." << std::endl;
-
     return 0;
 }

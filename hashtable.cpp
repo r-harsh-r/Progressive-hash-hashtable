@@ -1,7 +1,8 @@
 #include "hashtable.h"
 #include <functional>
 
-HashTable::HashTable(){
+template<typename T,typename H>
+HashTable<T,H>::HashTable(){
     N = 1024;
     bin = new Node*[N];
     for(int i = 0; i < N; ++i) bin[i] = nullptr;
@@ -12,12 +13,13 @@ HashTable::HashTable(){
     newBin = nullptr;
 }
 
-HashTable::~HashTable(){
+template<typename T,typename H>
+HashTable<T,H>::~HashTable(){
     // delete all nodes in each bucket
     for(int i = 0; i < N; ++i){
-        Node* curr = bin[i];
+        Node<T,H>* curr = bin[i];
         while(curr){
-            Node* next = curr->nex;
+            Node<T,H>* next = curr->nex;
             delete curr;
             curr = next;
         }
@@ -26,9 +28,9 @@ HashTable::~HashTable(){
     if (trans_idx != -1) { // Check if we were resizing
         int newN = N * 2;
         for (int i = 0; i < newN; ++i) {
-            Node* curr = newBin[i];
+            Node<T,H>* curr = newBin[i];
             while (curr) {
-                Node* next = curr->nex;
+                Node<T,H>* next = curr->nex;
                 delete curr;
                 curr = next;
             }
@@ -38,23 +40,26 @@ HashTable::~HashTable(){
     }
 }
 
-size_t HashTable::Hash(const string&key){
-    hash<string> h;
+template<typename T,typename H>
+size_t HashTable<T,H>::Hash(const T&key){
+    hash<T> h;
     return h(key);
 }
 
-size_t HashTable::getIdx(size_t hashed){
+template<typename T,typename H>
+size_t HashTable<T,H>::getIdx(size_t hashed){
     return hashed%N;
 }
 
-void HashTable::insert(string&key,string&val){
+template<typename T,typename H>
+void HashTable<T,H>::insert(T&key,H&val){
     if(trans_idx == -1){
         size_t idx = getIdx(Hash(key));
     
         
         // insert at head
         if(bin[idx] == nullptr){
-            Node*node = new Node;
+            Node<T,H>*node = new Node<T,H>;
             node->key = key;
             node->value = val;
             node->nex = nullptr;
@@ -63,7 +68,7 @@ void HashTable::insert(string&key,string&val){
             count_keys++;
         }else{
             // search the chain
-            Node*curr = bin[idx];
+            Node<T,H>*curr = bin[idx];
             int foundFlag = 0;
             
             while(curr != nullptr){
@@ -76,7 +81,7 @@ void HashTable::insert(string&key,string&val){
                 curr = curr->nex;
             }
             // not found in the chain, add the node
-            Node*node = new Node;
+            Node<T,H>*node = new Node<T,H>;
             node->key = key;
             node->value = val;
             node->nex = nullptr;
@@ -100,16 +105,16 @@ void HashTable::insert(string&key,string&val){
         if(bin[idx] == nullptr){
             // good! not in bin
         }else{
-            Node*curr = bin[idx];
+            Node<T,H>*curr = bin[idx];
 
             if(curr->key == key){
-                Node*temp = curr;
+                Node<T,H>*temp = curr;
                 bin[idx] = curr->nex;
                 delete temp;
 
             }else{
                 curr = curr->nex;
-                Node*prev = bin[idx];
+                Node<T,H>*prev = bin[idx];
                 while(curr != nullptr){
                     if(curr->key == key){
                         // AAH! in the bin
@@ -129,7 +134,7 @@ void HashTable::insert(string&key,string&val){
         idx = Hash(key)%(2*N);
 
         if(newBin[idx] == nullptr){
-            Node*node = new Node;
+            Node<T,H>*node = new Node<T,H>;
             node->key = key;
             node->value = val;
             node->nex = nullptr;
@@ -138,7 +143,7 @@ void HashTable::insert(string&key,string&val){
             count_keys++;
         }else{
             // search the chain
-            Node*curr = newBin[idx];
+            Node<T,H>*curr = newBin[idx];
             int foundFlag = 0;
             
             while(curr != nullptr){
@@ -151,7 +156,7 @@ void HashTable::insert(string&key,string&val){
                 curr = curr->nex;
             }
             // not found in the chain, add the node
-            Node*node = new Node;
+            Node<T,H>*node = new Node<T,H>;
             node->key = key;
             node->value = val;
             node->nex = nullptr;
@@ -185,11 +190,12 @@ void HashTable::insert(string&key,string&val){
     
 }
 
-string HashTable::find(const string&key){
+template<typename T,typename H>
+H HashTable<T,H>::find(const T&key){
     if(trans_idx == -1){
         int idx = getIdx(Hash(key));
         // cout<<"\tfinding "<<key<<" in bin"<<" "<<idx<<endl;
-        Node*curr = bin[idx];
+        Node<T,H>*curr = bin[idx];
     
         while(curr != nullptr){
             if(curr->key == key){
@@ -198,11 +204,11 @@ string HashTable::find(const string&key){
             curr = curr->nex;
         }
     
-        return "";
+        return H{};
     }
     
     // transition mode
-    Node*curr;
+    Node<T,H>*curr;
 
     int newIdx = Hash(key)%(2*N);
     curr = newBin[newIdx];
@@ -227,10 +233,10 @@ string HashTable::find(const string&key){
     // do the moveBatch operation
     progressiveRehashing();
 
-    return "";
+    return H{};
 }
 
-// void HashTable::remove(string&key){
+// void HashTable<T,H>::remove(string&key){
 //     if(trans_idx == -1){
 //         int idx = getIdx(Hash(key));
     
@@ -324,21 +330,23 @@ string HashTable::find(const string&key){
 // }
 
 
+
 // NOTE : TOOK HELP FROM GEMINI TO DEBUG MINOR LOGICAL BUG
-void HashTable::remove(string& key) {
+template<typename T,typename H>
+void HashTable<T,H>::remove(T& key) {
     // cout<<"gpt request to delete : "<<key<<endl;
     if (trans_idx == -1) {
         // cout<<"Finding in bin"<<endl;
         // --- NOT RESIZING ---
         // Only check bin
         int idx = getIdx(Hash(key));
-        Node* curr = bin[idx];
-        Node* prev = nullptr;
+        Node<T,H>* curr = bin[idx];
+        Node<T,H>* prev = nullptr;
         while (curr != nullptr) {
             // cout<<"Curr is not a nullptr"<<endl;
             if (curr->key == key) {
                 // Found the node to delete
-                Node* toDelete = curr;
+                Node<T,H>* toDelete = curr;
                 if (prev == nullptr) { // It's the head node
                     bin[idx] = curr->nex;
                 } else { // It's a node in the middle or end
@@ -363,11 +371,11 @@ void HashTable::remove(string& key) {
 
         // 1. Check old bin
         int idx = getIdx(Hash(key));
-        Node* curr = bin[idx];
-        Node* prev = nullptr;
+        Node<T,H>* curr = bin[idx];
+        Node<T,H>* prev = nullptr;
         while (curr != nullptr) {
             if (curr->key == key) {
-                Node* toDelete = curr;
+                Node<T,H>* toDelete = curr;
                 if (prev == nullptr) {
                     bin[idx] = curr->nex;
                 } else {
@@ -388,7 +396,7 @@ void HashTable::remove(string& key) {
         prev = nullptr;
         while (curr != nullptr) {
             if (curr->key == key) {
-                Node* toDelete = curr;
+                Node<T,H>* toDelete = curr;
                 if (prev == nullptr) {
                     newBin[newIdx] = curr->nex;
                 } else {
@@ -408,9 +416,10 @@ void HashTable::remove(string& key) {
     }
 }
 
-void HashTable::print(){
+template<typename T,typename H>
+void HashTable<T,H>::print(){
     for(int i = 0;i<N;i++){
-        Node*curr = bin[i];
+        Node<T,H>*curr = bin[i];
         cout<<i<<" : ";
         while(curr != nullptr){
             cout<<"{"<<curr->key<<" : "<<curr->value<<"}, ";
@@ -421,10 +430,11 @@ void HashTable::print(){
 
 }
 
-void HashTable::resize(){
+template<typename T,typename H>
+void HashTable<T,H>::resize(){
     int newN = 2*N;
 
-    newBin = new Node*[newN];
+    newBin = new Node<T,H>*[newN];
     for(int i = 0;i<newN;i++) newBin[i] = nullptr;
     trans_idx = 0;
 
@@ -432,14 +442,15 @@ void HashTable::resize(){
 
 }
 
-void HashTable::progressiveRehashing(){
+template<typename T,typename H>
+void HashTable<T,H>::progressiveRehashing(){
     // cout<<"PG triggered"<<endl;
     int newN = N*2;
     int remainingInBatch = batchSize;
     
     for(trans_idx;trans_idx < N;trans_idx++){
         while(bin[trans_idx] != nullptr){
-            Node*curr = bin[trans_idx];
+            Node<T,H>*curr = bin[trans_idx];
 
             // removed this node
             bin[trans_idx]= curr->nex;
