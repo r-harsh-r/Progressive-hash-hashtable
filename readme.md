@@ -51,15 +51,3 @@ Configuration notes
 
 - To test other key/value types or different sizes, add or change calls to the templated helpers in `main.cpp` (see the `runCorrectnessTest_T<>` and `runLatencyTest_MyTable_T<>` usage in `main()`).
 
-Notes & tips
-- The table's default initial bucket count is 1024 and `batchSize` controls how many nodes are moved per progressive rehashing step (see `hashtable.h`). Tweak these if you're experimenting with different workload shapes.
-- The stress test prints both average and maximum insert latencies; the maximum is shown in nanoseconds and milliseconds so you can more easily reason about observable pauses.
-
-If you'd like, I can also:
-- Add a small Makefile to simplify compilation.
-- Add a command-line flag to `stress_test_app` to set `LATENCY_INS`/`CORRECTNESS_OPS` at runtime.
-- Run the stress tests here and paste output samples.
-
-References
-- Implementation: `hashtable.h` (templated `HashTable<T,H>`)
-- Example tests / harness: `main.cpp`
