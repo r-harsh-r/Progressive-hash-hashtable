@@ -25,7 +25,7 @@ What the latency output shows
 
   Inserted: <N>, avg insert: <avg_ns> ns (<avg_ms> ms), max: <max_ns> ns (<max_ms> ms)
 
-  The reported max latency is printed in both nanoseconds and milliseconds (the <max_ms> value is the additional metric you requested).
+  The reported max latency is printed in both nanoseconds and milliseconds.
 
 Build & run
 You can compile the provided `main.cpp` (which includes `hashtable.h`) with a modern C++ compiler. Example (developer machine):
